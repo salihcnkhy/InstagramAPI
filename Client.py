@@ -5,18 +5,24 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 import time
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.support import expected_conditions as EC
 from flask import Flask, request, Response
-import requests
 
-#options = Options()
-#options.add_argument("--headless")
-#_driver = webdriver.Chrome('./chromedriver', options=options)
+import requests
 
 
 class InstagramSelenium:
+
+    username = ""
+    password = ""
+
+    class ProfiilePageXPaths(Enum):
+        followersBtn = ""
+        followingBtn = ""
+
     class LoginPageXPaths(Enum):
         usernameField = "//*[@id='react-root']/section/main/div/article/div/div[1]/div/form/div[2]/div/label/input"
         passwordField = "//*[@id='react-root']/section/main/div/article/div/div[1]/div/form/div[3]/div/label/input"
@@ -29,6 +35,7 @@ class InstagramSelenium:
 
     class URLs(Enum):
         LoginPage = "https://www.instagram.com/accounts/login/"
+        MainPage = "https://www.instagram.com/"
 
     _driver = webdriver.Chrome('./chromedriver')
 
@@ -40,9 +47,13 @@ class InstagramSelenium:
                 return False
         return True
 
-    def signIn(self, username, password):
+    def _loadPage(self,URL):
+        self._driver.get(URL)
 
-        self._driver.get(self.URLs.LoginPage.value)
+    def signIn(self, username, password):
+        self.username = username
+        self.password = password
+        self._loadPage(self.URLs.LoginPage.value)
 
         self.waitForElementsLoad(20,
                                  [self.LoginPageXPaths.usernameField.value, self.LoginPageXPaths.passwordField.value])
@@ -90,35 +101,26 @@ class InstagramSelenium:
 
     def getFollowerList(self):
 
-        self._driver.get(f"https://www.instagram.com/{self.username}")
-        followersBtn = self._driver.find_element_by_xpath()
+       self._loadPage(self.URLs.MainPage.value+self.username)
 
-
-app = Flask(__name__)
-instAPI = InstagramSelenium()
-
-
-@app.route('/login', methods=["POST"])
-def login():
-    if request.method == "POST":
-        attempted_username = request.form['username']
-        attempted_password = request.form['password']
-        responseFromSelenium = instAPI.signIn(attempted_username, attempted_password)
-        print(responseFromSelenium)
-        if responseFromSelenium == "TwoFactor":
-            return Response(status=202)  # 202 means need two factor code
-        else:
-            return Response(status=200)  # 200 means success to login
-
-
-@app.route('/loginTwo', methods=["POST"])
-def twoFactor():
-    if request.method == "POST":
-        attempted_code = request.form['code']
-        instAPI.enterTwoFactor(attempted_code)
-
-        return Response(status=200)
 
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    instAPI = InstagramSelenium()
+    responseFromSelenium = instAPI.signIn("salihcnkhy", 'dyNsim-1siQhy-0byhXa')
+    if responseFromSelenium == "twoFactor":
+        code = input()
+        text = instAPI.enterTwoFactor(code)
+        print(text)
+        while str(text) == "nonCorrect":
+            code = input()
+            text = instAPI.enterTwoFactor(code)
+            print(text)
+
+    # userInfo = {'username': 'salihcnkhy' , 'password':'dyNsim-1siQhy-0byhXa'}
+    # x = requests.post("http://127.0.0.1:5000/login",data=userInfo)
+    # if x.status_code == 202:
+    #     inputCode = input()
+    #     loginCode = {'code' : inputCode}
+    #     x = requests.post("http://127.0.0.1:5000/loginTwo",data=loginCode)
+    #     print(x.status_code)
